@@ -2,7 +2,9 @@ import pandas as pd
 import random
 from openai import OpenAI
 from sklearn.metrics import classification_report, accuracy_score
+from tqdm import tqdm
 
+# 初始化 OpenAI 客户端
 client = OpenAI(api_key="")
 
 # 读取数据
@@ -44,7 +46,7 @@ def get_response(example):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0,
+            temperature=0.75,
             max_tokens=5
         )
         return response.choices[0].message.content.strip()
@@ -52,8 +54,15 @@ def get_response(example):
         print(f"Error processing example: {example}. Error: {e}")
         return "2"  # 返回默认值（中性）以防止代码中断
 
-# 对测试集每条评论进行情感分类
-test_df['gpt_prediction'] = test_df['Phrase'].apply(get_response)
+# 对测试集每条评论进行情感分类，添加进度条
+tqdm.pandas()
+test_df['gpt_prediction'] = test_df['Phrase'].progress_apply(get_response)
+
+# 过滤掉 Sentiment 缺失的行
+test_df = test_df.dropna(subset=['Sentiment'])
+
+# 去除重复短语
+test_df = test_df.drop_duplicates(subset=['Phrase'])
 
 # 打印前几条结果
 print("测试集预测结果（前5条）：")
